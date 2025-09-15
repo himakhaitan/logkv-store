@@ -37,7 +37,7 @@ func (db *DB) List() ([]string, error) {
 	return db.Store.List()
 }
 
-func (db *DB) Stats() (string, error) {
+func (db *DB) Stats() (store.Stats, error) {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
 	return db.Store.Stats()

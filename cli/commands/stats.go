@@ -1,13 +1,14 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/himakhaitan/logkv-store/cli/output"
+	servertypes "github.com/himakhaitan/logkv-store/types"
 	"github.com/spf13/cobra"
 )
 
@@ -26,15 +27,30 @@ func NewStatsCommand() *cobra.Command {
 			resp, err := client.Get(fmt.Sprintf("%s/v1/stats", addr))
 			if err != nil {
 				output.Error(fmt.Sprintf("Failed to connect to server at %s\n %v", addr, err))
-				os.Exit(1)
+				return
 			}
 			defer resp.Body.Close()
 			if resp.StatusCode != http.StatusOK {
-				output.Error(fmt.Sprintf("Server error: %s\n", resp.Status))
-				os.Exit(1)
+				output.Error(fmt.Sprintf("Server error: %s", resp.Status))
+				return
 			}
-			b, _ := io.ReadAll(resp.Body)
-			output.Info(fmt.Sprintf("Database Statistics:\n%s\n", string(b)))
+			var out servertypes.StatsResponse
+			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+				output.Error(fmt.Sprintf("Invalid response: %v", err))
+				return
+			}
+			if !out.Success {
+				if out.Message != "" {
+					output.Error(out.Message)
+				} else {
+					output.Error("Request failed")
+				}
+				return
+			}
+			output.Success("Database Statistics")
+			output.Info(fmt.Sprintf("Total Keys: %d", out.TotalKeys))
+			output.Info(fmt.Sprintf("Total Size: %d bytes", out.TotalSize))
+			output.Info(fmt.Sprintf("Segments: %d", out.Segments))
 		},
 	}
 }

@@ -3,9 +3,9 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/himakhaitan/logkv-store/engine"
 	"github.com/himakhaitan/logkv-store/types"
@@ -17,7 +17,7 @@ import (
 func NewMux(db *engine.DB, logger *zap.Logger) *http.ServeMux {
 	mux := http.NewServeMux()
 
-	// Health
+	// Health Check Route
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
@@ -25,86 +25,116 @@ func NewMux(db *engine.DB, logger *zap.Logger) *http.ServeMux {
 
 	// GET or DELETE /v1/kv/{key}
 	mux.HandleFunc("/v1/kv/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		// Extract key from URL
 		key := r.URL.Path[len("/v1/kv/"):]
 		if key == "" {
-			http.Error(w, "missing key", http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(types.BaseResponse{Success: false, Message: "missing key", Timestamp: time.Now().Unix()})
 			return
 		}
 		switch r.Method {
 		case http.MethodGet:
 			value, err := db.Get(key)
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusNotFound)
+				w.WriteHeader(http.StatusNotFound)
+				_ = json.NewEncoder(w).Encode(types.BaseResponse{Success: false, Message: err.Error(), Timestamp: time.Now().Unix()})
 				return
 			}
-			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			_ = json.NewEncoder(w).Encode(types.GetResponse{Key: key, Value: value})
+			_ = json.NewEncoder(w).Encode(types.GetResponse{Key: key, Value: value, BaseResponse: types.BaseResponse{Success: true, Timestamp: time.Now().Unix(), Message: "key fetched successfully"}})
 		case http.MethodDelete:
 			if err := db.Delete(key); err != nil {
-				http.Error(w, err.Error(), http.StatusNotFound)
+				w.WriteHeader(http.StatusNotFound)
+				_ = json.NewEncoder(w).Encode(types.BaseResponse{Success: false, Message: err.Error(), Timestamp: time.Now().Unix()})
 				return
 			}
 			w.WriteHeader(http.StatusNoContent)
 		default:
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			_ = json.NewEncoder(w).Encode(types.BaseResponse{Success: false, Message: "method not allowed", Timestamp: time.Now().Unix()})
+			return
 		}
 	})
 
 	// PUT/POST /v1/kv
 	mux.HandleFunc("/v1/kv", func(w http.ResponseWriter, r *http.Request) {
-		log.Println("Incoming request:", r.Method)
 		if r.Method != http.MethodPut && r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			_ = json.NewEncoder(w).Encode(types.BaseResponse{Success: false, Message: "Method not allowed", Timestamp: time.Now().Unix()})
 			return
 		}
 		var req types.SetRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "invalid json", http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(types.BaseResponse{Success: false, Message: "invalid json", Timestamp: time.Now().Unix()})
 			return
 		}
 		if req.Key == "" {
-			http.Error(w, "missing key", http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(types.BaseResponse{Success: false, Message: "missing key", Timestamp: time.Now().Unix()})
 			return
 		}
-		log.Printf("Setting key %q to %q\n", req.Key, req.Value)
 
 		if err := db.Set(req.Key, req.Value); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(types.BaseResponse{Success: false, Message: err.Error(), Timestamp: time.Now().Unix()})
 			return
 		}
-		log.Println("Set complete")
 		w.WriteHeader(http.StatusNoContent)
 	})
 
 	// GET /v1/keys
 	mux.HandleFunc("/v1/keys", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			_ = json.NewEncoder(w).Encode(types.BaseResponse{Success: false, Message: "Method not allowed", Timestamp: time.Now().Unix()})
 			return
 		}
 		keys, err := db.List()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(types.BaseResponse{Success: false, Message: "Internal Server Error", Timestamp: time.Now().Unix()})
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(keys)
+		_ = json.NewEncoder(w).Encode(types.ListKeysResponse{
+			Keys: keys,
+			BaseResponse: types.BaseResponse{
+				Success:   true,
+				Timestamp: time.Now().Unix(),
+				Message:   "keys fetched successfully",
+			},
+		})
 	})
 
 	// GET /v1/stats
 	mux.HandleFunc("/v1/stats", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			_ = json.NewEncoder(w).Encode(types.BaseResponse{Success: false, Message: "Method not allowed", Timestamp: time.Now().Unix()})
 			return
 		}
 		stats, err := db.Stats()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
+			_ = json.NewEncoder(w).Encode(types.BaseResponse{Success: false, Message: "Internal Server Error", Timestamp: time.Now().Unix()})
 			return
 		}
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = w.Write([]byte(stats))
+		_ = json.NewEncoder(w).Encode(types.StatsResponse{
+			TotalKeys: stats.TotalKeys,
+			TotalSize: stats.TotalSize,
+			Segments:  stats.Segments,
+			BaseResponse: types.BaseResponse{
+				Success:   true,
+				Timestamp: time.Now().Unix(),
+				Message:   "stats fetched successfully",
+			},
+		})
 	})
 
 	return mux

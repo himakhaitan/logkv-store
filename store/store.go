@@ -203,8 +203,14 @@ func (s *Store) List() ([]string, error) {
 	return s.hashTable.List(), nil
 }
 
+type Stats struct {
+	TotalKeys int
+	TotalSize int64
+	Segments  int
+}
+
 // Stats returns database statistics
-func (s *Store) Stats() (string, error) {
+func (s *Store) Stats() (Stats, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -216,8 +222,11 @@ func (s *Store) Stats() (string, error) {
 		segmentCount = len(s.segmentManager.GetSegmentIDs())
 	}
 
-	return fmt.Sprintf("Total keys: %d\nTotal size: %d bytes\nSegments: %d",
-		totalKeys, totalSize, segmentCount), nil
+	return Stats{
+		TotalKeys: totalKeys,
+		TotalSize: totalSize,
+		Segments:  segmentCount,
+	}, nil
 }
 
 // Close closes the store and all its resources

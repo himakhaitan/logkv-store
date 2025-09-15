@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/himakhaitan/logkv-store/cli/output"
+	servertypes "github.com/himakhaitan/logkv-store/types"
 	"github.com/spf13/cobra"
 )
 
@@ -29,25 +30,27 @@ func NewGetCommand() *cobra.Command {
 			resp, err := client.Get(url)
 			if err != nil {
 				output.Error(fmt.Sprintf("Failed to connect to server at %s\n %v", addr, err))
-				os.Exit(1)
+				return
 			}
 			defer resp.Body.Close()
 			if resp.StatusCode == http.StatusNotFound {
-				output.Info(fmt.Sprintf("Key '%s' not found\n", key))
+				output.Warn(fmt.Sprintf("Key '%s' not found", key))
 				return
 			}
 			if resp.StatusCode != http.StatusOK {
-				output.Error(fmt.Sprintf("Server error: %s\n", resp.Status))
-				os.Exit(1)
+				output.Error(fmt.Sprintf("Server error: %s", resp.Status))
+				return
 			}
-			var out struct {
-				Value string `json:"value"`
-			}
+			var out servertypes.GetResponse
 			if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-				output.Error(fmt.Sprintf("Invalid response: %v\n", err))
-				os.Exit(1)
+				output.Error(fmt.Sprintf("Invalid response: %v", err))
+				return
 			}
-			output.Info(fmt.Sprintf("%s\n", out.Value))
+			output.Success(fmt.Sprintf("Key: %s", out.Key))
+			output.Info(fmt.Sprintf("Value: %s", out.Value))
+			if out.Timestamp != 0 {
+				output.Dim(fmt.Sprintf("Timestamp: %d", out.Timestamp))
+			}
 		},
 	}
 }

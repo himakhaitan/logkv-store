@@ -26,24 +26,24 @@ func NewDeleteCommand() *cobra.Command {
 			client := &http.Client{Timeout: 10 * time.Second}
 			req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/v1/kv/%s", addr, key), nil)
 			if err != nil {
-				output.Error(fmt.Sprintf("Failed to create request: %v\n", err))
-				os.Exit(1)
+				output.Error(fmt.Sprintf("Failed to create request: %v", err))
+				return
 			}
 			resp, err := client.Do(req)
 			if err != nil {
 				output.Error(fmt.Sprintf("Failed to connect to server at %s\n %v", addr, err))
-				os.Exit(1)
+				return
 			}
 			defer resp.Body.Close()
 			if resp.StatusCode == http.StatusNotFound {
-				output.Info(fmt.Sprintf("Key '%s' not found\n", key))
+				output.Warn(fmt.Sprintf("Key '%s' not found", key))
 				return
 			}
 			if resp.StatusCode != http.StatusNoContent {
-				output.Error(fmt.Sprintf("Server error: %s\n", resp.Status))
-				os.Exit(1)
+				output.Error(fmt.Sprintf("Server error: %s", resp.Status))
+				return
 			}
-			output.Info(fmt.Sprintf("Deleted key: %s\n", key))
+			output.Success(fmt.Sprintf("Deleted key: %s", key))
 		},
 	}
 }

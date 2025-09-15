@@ -31,20 +31,20 @@ func NewSetCommand() *cobra.Command {
 			req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/v1/kv", addr), bytes.NewReader(body))
 			if err != nil {
 				output.Error(fmt.Sprintf("Failed to create request: %v", err))
-				os.Exit(1)
+				return
 			}
 			req.Header.Set("Content-Type", "application/json")
 			resp, err := client.Do(req)
 			if err != nil {
 				output.Error(fmt.Sprintf("Failed to connect to server at %s\n %v", addr, err))
-				os.Exit(1)
+				return
 			}
 			defer resp.Body.Close()
 			if resp.StatusCode != http.StatusNoContent {
-				output.Error(fmt.Sprintf("Server error: %s\n", resp.Status))
-				os.Exit(1)
+				output.Error(fmt.Sprintf("Server error: %s", resp.Status))
+				return
 			}
-			output.Success(fmt.Sprintf("Set %s = %s\n", key, value))
+			output.Success(fmt.Sprintf("Set %s = %s", key, value))
 		},
 	}
 }
