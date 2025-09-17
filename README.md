@@ -71,12 +71,6 @@ Note: This README intentionally omits specific CLI commands and API route detail
 
 Issues and PRs are welcome. Keep changes focused and well-documented. Favor clarity over cleverness.
 
-## License
-
-MIT
-
----
-
 ## Feature Ideas You Can Add Next
 
 - Compaction/merge job: coalesce latest values, drop tombstones, rewrite segments.
@@ -94,15 +88,11 @@ MIT
 - Graceful schema evolution for record headers.
 - Fsync strategies (always, interval, buffered) tuned via config.
 
----
-
 ## Inspired by Bitcask
 
 ![bitcask](https://github.com/himakhaitan/logkv-store/blob/main/resources/bitcask.png)
 
 This project draws inspiration from the Bitcask storage model. See the original paper and community resources for deeper background.
-
----
 
 ## Explore More
 
