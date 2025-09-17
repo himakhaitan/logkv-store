@@ -96,5 +96,5 @@ This project draws inspiration from the Bitcask storage model. See the original 
 
 ## Explore More
 
-Find more of my work, posts, and links here: `https://linktr.ee/hima_khaitan`
+Find more of my work, posts, and links here: [`https://linktr.ee/hima_khaitan`](https://linktr.ee/hima_khaitan)
 
