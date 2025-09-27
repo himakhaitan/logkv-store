@@ -40,10 +40,10 @@ func NewServerCommand() *cobra.Command {
 
 func buildServer() error {
 	cmd := exec.Command("go", "build", "-o", "./bin/logkvd.exe", "./cmd/logkvd/main.go")
-	return cmd.Start()
+	return cmd.Run()
 }
 
 func startServer() error {
 	cmd := exec.Command("cmd", "/C", "start", "./bin/logkvd.exe")
-	return cmd.Start()
+	return cmd.Run()
 }
