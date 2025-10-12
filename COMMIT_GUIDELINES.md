@@ -90,7 +90,7 @@ feat(api): add rate limiting to endpoints
 fix(auth): prevent login crash on empty password
 docs(readme): update local setup steps
 refactor(core): simplify middleware chain
-chore(deps): bump axios to 1.6.0
+chore(deps): bump <package> to 1.6.0
 ```
 
 ## Pro Tips
