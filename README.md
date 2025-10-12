@@ -9,8 +9,6 @@ Built for simplicity, speed, and durability—perfect for learning system design
 
 Read the full write-up: [Building a Bitcask Inspired KV Store: Append-Only Logs Meet In-Memory Hash Indexes](https://himakhaitan.substack.com/p/building-a-bitcask-inspired-kv-store)
 
-Reference: `https://himakhaitan.substack.com/p/building-a-bitcask-inspired-kv-store`
-
 The design prioritizes simplicity and correctness for educational clarity; production deployments would add compaction/merge, checksums, file rotation thresholds, and crash-consistency hardening.
 
 ## Run Locally
@@ -95,6 +93,4 @@ Issues and PRs are welcome. Keep changes focused and well-documented. Favor clar
 This project draws inspiration from the Bitcask storage model. See the original paper and community resources for deeper background.
 
 ## Explore More
-
-Find more of my work, posts, and links here: [`https://linktr.ee/hima_khaitan`](https://linktr.ee/hima_khaitan)
 
