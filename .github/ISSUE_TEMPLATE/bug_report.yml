@@ -1,0 +1,20 @@
+name: Bug Report
+description: You're experiencing an issue with logkv-store that is different than the expected behavior.
+title: "Bug Report: "
+labels: ["Type: Bug", "Needs Triage"]
+body:
+  - type: textarea
+    id: overview-of-the-issue
+    attributes:
+      label: Overview of the Issue
+      description: A paragraph or two about the issue you're experiencing.
+      placeholder: Tell us what you see!
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Reproduction Steps
+      description: A list of steps to reproduce the issue.
+    validations:
+      required: true
