@@ -346,14 +346,12 @@ func (s *Store) Merge() error {
 		return err
 	}
 
-	var processedBytes int64
 	for _, file := range files {
 
 		info, err := file.Info()
 		if err != nil {
 			return err
 		}
-		processedBytes += info.Size()
 
 		err = os.Rename(
 			path.Join(tmpDir, file.Name()),
