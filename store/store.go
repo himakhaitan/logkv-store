@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
+	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/himakhaitan/logkv-store/pkg/config"
@@ -18,6 +21,7 @@ type Store struct {
 	segmentManager *SegmentManager
 	hashTable      *HashTable
 	logger         *zap.Logger
+	isMerging      atomic.Bool
 }
 
 // New creates a new Bitcask-like store
@@ -48,6 +52,20 @@ func New(logger *zap.Logger, config *config.Config) (*Store, error) {
 		// End the store initialization if loading fails
 		return nil, err
 	}
+
+	// Periodically trigger background merges at MergeInterval.
+	go func() {
+		ticker := time.NewTicker(config.MergeInterval)
+		for {
+			<-ticker.C
+			logger.Info("Starting compaction...")
+			if err := store.Merge(); err != nil {
+				logger.Error("Compaction failed", zap.Error(err))
+			} else {
+				logger.Info("Compaction was successful")
+			}
+		}
+	}()
 
 	return store, nil
 }
@@ -237,6 +255,119 @@ func (s *Store) Close() error {
 	if s.segmentManager != nil {
 		return s.segmentManager.Close()
 	}
+
+	return nil
+}
+
+// Merge compacts inactive segments by copying only live (non-tombstone) records.
+func (s *Store) Merge() error {
+	if s.isMerging.Load() {
+		return ErrMergeInProgress
+	}
+
+	s.isMerging.Store(true)
+	defer s.isMerging.Store(false)
+
+	sm := s.segmentManager
+	ids := sm.GetInactiveSegmentIDs()
+	if len(ids) == 0 {
+		s.logger.Info("No inactive segments to compact")
+		return nil
+	}
+
+	s.logger.Info("Starting compaction", zap.Ints("segments", ids))
+
+	tmpDir := filepath.Join(s.basePath, "merge_tmp")
+	_ = os.RemoveAll(tmpDir)
+	if err := os.MkdirAll(tmpDir, 0755); err != nil {
+		return fmt.Errorf("create tmp dir: %w", err)
+	}
+
+	mergeSM, err := NewSegmentManager(tmpDir)
+	if err != nil {
+		return err
+	}
+
+	mergeHT := NewHashTable()
+	snap := s.hashTable.Clone() // snap for checking updated keys while compacting
+
+	for _, id := range ids {
+		seg, ok := s.segmentManager.GetSegment(id)
+		if !ok {
+			continue
+		}
+
+		var pos int64
+		size := seg.Size()
+		for pos < size {
+			se, err := seg.Read(pos)
+			if err != nil {
+				return fmt.Errorf("compaction failed seg=%d off=%d: %w", id, pos, err)
+			}
+
+			oldOff := pos
+			pos += int64(se.Size()) // advance regardless of branch
+
+			if se.IsTombstone() {
+				continue
+			}
+
+			key := string(se.Key) // redundant alloc (could be optimize)
+			he, ok := snap.Get(key)
+			if !ok || he.FileID != id || he.ValuePos != oldOff {
+				continue
+			}
+
+			newId, newOff, err := mergeSM.Append(se)
+			if err != nil {
+				return fmt.Errorf("failed to append entry: %w", err)
+			}
+
+			mergeHT.Put(key, newId, newOff, uint32(se.Size()), se.Timestamp)
+		}
+	}
+
+	// Ensure merged files are durable before swapping.
+	mergeSM.FlushAll()
+
+	// Short stop-the-world: move files, rebuild segment manager, commit index.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// Remove old segments
+	for _, id := range ids {
+		if err := s.segmentManager.DeleteSegment(id); err != nil {
+			return fmt.Errorf("delete seg %d: %w", id, err)
+		}
+	}
+
+	// Move merged files into base dir.
+	files, err := os.ReadDir(tmpDir)
+	if err != nil {
+		return err
+	}
+
+	var processedBytes int64
+	for _, file := range files {
+
+		info, err := file.Info()
+		if err != nil {
+			return err
+		}
+		processedBytes += info.Size()
+
+		err = os.Rename(
+			path.Join(tmpDir, file.Name()),
+			path.Join(s.basePath, file.Name()),
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Merge segment managers
+	s.segmentManager.Merge(mergeSM)
+	// Merge hash tables
+	s.hashTable.Merge(mergeHT, snap)
 
 	return nil
 }

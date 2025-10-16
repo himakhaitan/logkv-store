@@ -215,3 +215,57 @@ func (sm *SegmentManager) GetSegmentIDs() []int {
 	sort.Ints(ids)
 	return ids
 }
+
+// GetSegmentIDs returns all segment IDs
+func (sm *SegmentManager) GetInactiveSegmentIDs() []int {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+
+	ids := make([]int, 0, len(sm.segments))
+	for id, segment := range sm.segments {
+		if !segment.isActive {
+			ids = append(ids, id)
+		}
+	}
+
+	sort.Ints(ids)
+	return ids
+}
+
+// DeleteSegment delete a segment by ID
+func (sm *SegmentManager) DeleteSegment(id int) error {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	segment, exists := sm.segments[id]
+	if !exists {
+		return nil
+	}
+
+	delete(sm.segments, id)
+	if err := segment.Delete(); err != nil {
+		return err
+	}
+	return nil
+}
+
+// MergeFrom copies segment pointers from src into sm.
+func (sm *SegmentManager) Merge(src *SegmentManager) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	for k, v := range src.segments {
+		sm.segments[k] = v
+	}
+}
+
+// FlushAll fsyncs all segment files in the manager.
+func (sm *SegmentManager) FlushAll() error {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+	for _, seg := range sm.segments {
+		if err := seg.Flush(); err != nil {
+			return err
+		}
+	}
+	return nil
+}

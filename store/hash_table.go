@@ -81,3 +81,32 @@ func (kd *HashTable) Stats() (int, int64) {
 
 	return totalKeys, totalSize
 }
+
+// Merge applies updates from src only if current value still equals snap's.
+// Prevents compaction from overwriting newer writes.
+func (h *HashTable) Merge(src, snap *HashTable) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	for k, v := range src.index {
+		cur, ok := h.index[k]
+		sv, okSnap := snap.index[k]
+		// must exist in snapshot and be unchanged since snapshot
+		if !okSnap || !ok || cur != sv {
+			continue
+		}
+		h.index[k] = v
+	}
+}
+
+// Clone returns a shallow snapshot of the table (for compaction checks).
+func (h *HashTable) Clone() *HashTable {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	c := NewHashTable()
+	for k, v := range h.index {
+		c.index[k] = v
+	}
+	return c
+}
