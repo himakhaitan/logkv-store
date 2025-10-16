@@ -14,4 +14,7 @@ var (
 
 	// ErrSegmentFull is returned when a segment has reached its maximum size
 	ErrSegmentFull = errors.New("segment is full")
+
+	// ErrMergeInProgress prevents concurrent compactions.
+	ErrMergeInProgress = errors.New("merge in progress")
 )

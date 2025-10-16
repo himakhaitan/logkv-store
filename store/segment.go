@@ -211,3 +211,22 @@ func (s *Segment) ID() int {
 func (s *Segment) Path() string {
 	return s.path
 }
+
+// Delete the segment
+func (s *Segment) Delete() error {
+	if !s.isClosed {
+		s.file.Close()
+	}
+	if err := os.Remove(s.Path()); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Flush fsyncs the segment file to durable storage.
+func (s *Segment) Flush() error {
+	if s.file == nil {
+		return nil
+	}
+	return s.file.Sync()
+}
