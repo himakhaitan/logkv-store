@@ -1,6 +1,7 @@
 name: Go Tests & Coverage
 
 on:
+  workflow-dispatch:
   pull_request:
     branches: [ main ] 
 
