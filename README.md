@@ -45,6 +45,32 @@ export LOGKV_ADDR=":8080"
 
 By default, data is persisted under the `data/` directory at the project root. 
 
+### Test
+
+To run all unit tests in the project:
+
+```bash
+go test ./...
+```
+
+To measure how much of your code is covered by tests:
+
+```bash
+go test ./... -cover
+```
+
+For a detailed function-by-function coverage report:
+
+```bash
+go test ./... -coverprofile=coverage.out
+go tool cover -func=coverage.out
+
+
+#Optional If you want to see which lines are covered (green/red):
+
+go tool cover -html=coverage.out
+```
+
 ### Interacting
 
 - An HTTP server is started for basic operations.
